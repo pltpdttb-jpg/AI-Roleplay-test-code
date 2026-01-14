@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lotto Result | Prudential NY Party</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap');
+        
+        body { 
+            font-family: 'Kanit', sans-serif; 
+            background: #000; 
+            color: white; 
+            height: 100vh; 
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.1s;
+        }
+
+        .lotto-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #ED1B2E;
+            text-shadow: 0 0 20px rgba(237, 27, 46, 0.5);
+            margin-bottom: 0.5rem;
+        }
+
+        .digit-container { display: flex; gap: 15px; margin-bottom: 3rem; }
+
+        .digit-box {
+            width: 140px;
+            height: 220px;
+            background: linear-gradient(180deg, #222 0%, #000 100%);
+            border: 4px solid #333;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 140px;
+            font-weight: 900;
+            color: #444;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .digit-box.active { color: #fff; border-color: #ED1B2E; box-shadow: 0 0 30px rgba(237, 27, 46, 0.4); }
+        .digit-box.final { color: #FFD700; border-color: #FFD700; box-shadow: 0 0 50px rgba(255, 215, 0, 0.6); }
+
+        .spin-anim { animation: roll 0.1s infinite linear; }
+        @keyframes roll {
+            0% { transform: translateY(-50%); opacity: 0.3; }
+            100% { transform: translateY(50%); opacity: 0.3; }
+        }
+
+        /* Glitch Background Effect */
+        .glitch-bg { animation: glitch 0.1s infinite; }
+        @keyframes glitch {
+            0% { background: #ff0000; }
+            33% { background: #ffffff; }
+            66% { background: #000000; }
+            100% { background: #ff0000; }
+        }
+
+        .btn-main {
+            padding: 1.5rem 4rem;
+            font-size: 2rem;
+            font-weight: 900;
+            border-radius: 99px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        .btn-red { background: #ED1B2E; color: white; box-shadow: 0 0 20px rgba(237, 27, 46, 0.5); }
+        .btn-gold { 
+            background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #AA771C);
+            color: #000;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.8);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body id="bg-body">
+
+    <div class="text-center z-10">
+        <h1 class="lotto-title italic">ฉลากกินไม่แบ่ง ไม่ใช่ของรัฐบาล</h1>
+        <p class="text-xl text-gray-400 mb-10 tracking-[0.3em] font-bold">งวดประจำปี 2025</p>
+
+        <div class="digit-container">
+            <!-- เรียงจาก d0 (หมื่น) ไป d4 (หน่วย) -->
+            <div class="digit-box" id="d0">?</div>
+            <div class="digit-box" id="d1">?</div>
+            <div class="digit-box" id="d2">?</div>
+            <div class="digit-box" id="d3">?</div>
+            <div class="digit-box" id="d4">?</div>
+            <div class="digit-box ml-4 text-red-600 border-red-900" id="dm" style="display:none; width: 160px;">M</div>
+        </div>
+
+        <button id="btn" class="btn-main btn-red">เริ่มหมุนหลักหน่วย</button>
+        
+        <p id="hint" class="mt-8 text-gray-500 font-bold uppercase tracking-widest">Ready to draw</p>
+    </div>
+
+    <script>
+        const fakeNums = "11221"; // หลักหมื่น(1) หลักพัน(1) หลักร้อย(2) หลักสิบ(2) หลักหน่วย(1)
+        const realNums = "11829";
+        
+        // ลำดับดัชนีการแสดงผลหลอก (เริ่มจากหลักหน่วย 4 ไปหา หลักหมื่น 0)
+        const fakeStepOrder = [4, 3, 2, 1, 0];
+        let currentStepIdx = 0; 
+        
+        let isFinalStage = false;
+
+        const btn = document.getElementById('btn');
+        const body = document.getElementById('bg-body');
+        const hint = document.getElementById('hint');
+        const digitBoxes = [
+            document.getElementById('d0'),
+            document.getElementById('d1'),
+            document.getElementById('d2'),
+            document.getElementById('d3'),
+            document.getElementById('d4')
+        ];
+
+        const stepNames = ["หลักหมื่น", "หลักพัน", "หลักร้อย", "หลักสิบ", "หลักหน่วย"];
+
+        btn.addEventListener('click', () => {
+            if (isFinalStage) {
+                revealFinal();
+                return;
+            }
+            if (currentStepIdx < 5) {
+                const targetDigitPos = fakeStepOrder[currentStepIdx];
+                spinAndStop(targetDigitPos);
+            }
+        });
+
+        function spinAndStop(posIdx) {
+            btn.disabled = true;
+            digitBoxes[posIdx].innerHTML = `<div class="spin-anim">8</div>`;
+            digitBoxes[posIdx].classList.add('active');
+            hint.textContent = `กำลังประมวลผล${stepNames[posIdx]}...`;
+
+            setTimeout(() => {
+                digitBoxes[posIdx].innerHTML = fakeNums[posIdx];
+                currentStepIdx++;
+                
+                if (currentStepIdx < 5) {
+                    const nextPosIdx = fakeStepOrder[currentStepIdx];
+                    btn.disabled = false;
+                    btn.textContent = `เริ่มหมุน${stepNames[nextPosIdx]}`;
+                } else {
+                    triggerGlitch();
+                }
+            }, 1000);
+        }
+
+        function triggerGlitch() {
+            body.classList.add('glitch-bg');
+            hint.textContent = "SYSTEM ERROR: DATA CORRUPTED";
+            hint.className = "mt-8 text-white font-black bg-red-600 px-6 py-1 animate-bounce uppercase";
+            
+            setTimeout(() => {
+                body.classList.remove('glitch-bg');
+                btn.disabled = false;
+                btn.textContent = "BOOST UP"; // เปลี่ยนข้อความเป็น BOOST UP
+                btn.className = "btn-main btn-gold";
+                isFinalStage = true;
+                hint.textContent = "SYSTEM RECOVERED - READY FOR FINAL REVEAL";
+                hint.className = "mt-8 text-yellow-500 font-bold tracking-widest uppercase";
+            }, 3000);
+        }
+
+        function revealFinal() {
+            btn.disabled = true;
+            btn.style.display = 'none';
+            
+            // Show M
+            const dm = document.getElementById('dm');
+            dm.style.display = 'flex';
+            dm.classList.add('final');
+
+            // Spin all boxes
+            digitBoxes.forEach(box => {
+                box.innerHTML = `<div class="spin-anim">8</div>`;
+                box.classList.remove('active');
+            });
+
+            // Random reveal sequence for the final result
+            const revealPositions = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
+            
+            revealPositions.forEach((pos, i) => {
+                setTimeout(() => {
+                    digitBoxes[pos].classList.add('final');
+                    digitBoxes[pos].innerHTML = realNums[pos];
+                    
+                    if (i === 4) {
+                        finishCelebration();
+                    }
+                }, 1500 + (i * 1200));
+            });
+        }
+
+        function finishCelebration() {
+            hint.innerHTML = "🎉 ยอดขายปี 2025 คือ 11,829 M! 🎉";
+            hint.className = "mt-8 text-5xl text-green-500 font-black animate-pulse";
+            
+            const duration = 20 * 1000;
+            const animationEnd = Date.now() + duration;
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+
+                confetti({
+                    particleCount: 80,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#ED1B2E', '#FFD700', '#ffffff', '#000000']
+                });
+            }, 500);
+        }
+    </script>
+</body>
+</html>
+
